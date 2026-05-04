@@ -107,14 +107,14 @@ const char MAIN_page[] PROGMEM = R"=====(
             
             <div class="control-section">
               <div class="control-row">
-                <span class="control-label">Water Pump (LED 1):</span>
+                <span class="control-label">Cooling Fan (LED 1):</span>
                 <label class="switch">
                   <input type="checkbox" id="togLED_1_Slave_1" onclick="send_LED_State('togLED_1_Slave_1','S1','1')">
                   <div class="sliderTS"></div>
                 </label>
               </div>
               <div class="control-row">
-                <span class="control-label">Cooling Fan (LED 2):</span>
+                <span class="control-label">Water Pump (LED 2):</span>
                 <label class="switch">
                   <input type="checkbox" id="togLED_2_Slave_1" onclick="send_LED_State('togLED_2_Slave_1','S1','2')">
                   <div class="sliderTS"></div>
@@ -162,14 +162,14 @@ const char MAIN_page[] PROGMEM = R"=====(
             
             <div class="control-section">
               <div class="control-row">
-                <span class="control-label">Water Pump (LED 1):</span>
+                <span class="control-label">Cooling Fan (LED 1):</span>
                 <label class="switch">
                   <input type="checkbox" id="togLED_1_Slave_2" onclick="send_LED_State('togLED_1_Slave_2','S2','1')">
                   <div class="sliderTS"></div>
                 </label>
               </div>
               <div class="control-row">
-                <span class="control-label">Cooling Fan (LED 2):</span>
+                <span class="control-label">Water Pump (LED 2):</span>
                 <label class="switch">
                   <input type="checkbox" id="togLED_2_Slave_2" onclick="send_LED_State('togLED_2_Slave_2','S2','2')">
                   <div class="sliderTS"></div>

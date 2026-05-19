@@ -10,6 +10,7 @@ const char MAIN_page[] PROGMEM = R"=====(
       :root {
         --primary-color: #2E7D32; 
         --secondary-color: #E8F5E9; 
+        --danger-color: #e53935;
         --text-dark: #333;
         --card-bg: #ffffff;
       }
@@ -26,12 +27,44 @@ const char MAIN_page[] PROGMEM = R"=====(
       .cards {display: grid; grid-gap: 20px; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));}
       
       /* Node Cards */
-      .card {background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); overflow: hidden; transition: transform 0.3s;}
+      .card {background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); overflow: hidden; transition: transform 0.3s; position: relative;}
       .card:hover {transform: translateY(-5px);}
-      .card-header {background-color: var(--primary-color); color: white; padding: 15px; text-align: center;}
-      .card-header h3 {margin: 0; font-size: 1.3rem;}
+      .card-header {background-color: var(--primary-color); color: white; padding: 15px; text-align: center; display: flex; justify-content: space-between; align-items: center;}
+      .card-header h3 {margin: 0; font-size: 1.3rem; flex-grow: 1;}
+      
+      /* Delete Button */
+      .btn-delete {background-color: var(--danger-color); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: background 0.3s;}
+      .btn-delete:hover {background-color: #c62828;}
+
       .card-body {padding: 20px;}
       
+      /* Network Info Bar */
+      .network-info {background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-size: 0.9rem; color: #1565c0; font-weight: bold; display: flex; justify-content: center; gap: 20px;}
+      
+      /* Mode Selector */
+      .mode-selector {
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #e8eaf6;
+        padding: 10px 15px;
+        border-radius: 8px;
+        border-left: 5px solid #3f51b5;
+      }
+      .mode-selector label { font-weight: bold; color: #3f51b5; font-size: 0.95rem; }
+      .mode-selector select {
+        padding: 6px 12px;
+        border-radius: 5px;
+        border: 1px solid #c5cae9;
+        background: white;
+        font-weight: bold;
+        color: #333;
+        cursor: pointer;
+        outline: none;
+      }
+      .mode-selector select:focus { border-color: #3f51b5; }
+
       /* Sensor Grid */
       .sensor-grid {display: grid; grid-template-columns: 50% 50%; grid-gap: 15px; margin-bottom: 20px;}
       .sensor-item {background: var(--secondary-color); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #c8e6c9;}
@@ -64,24 +97,59 @@ const char MAIN_page[] PROGMEM = R"=====(
       .status-info {font-size: 0.85rem; color: #666; background: #fff; border-top: 1px solid #eee; padding-top: 15px;}
       .status-info p {margin: 5px 0; display: flex; justify-content: space-between;}
       
-      #Show_Info {text-align: center; font-style: italic; color: var(--primary-color); margin-top: 20px; height: 20px;}
+      #Show_Info {text-align: center; font-style: italic; color: var(--primary-color); margin-top: 20px; height: 20px; font-weight: bold;}
+
+      /* AI Alert Message Box */
+      .ai-alert {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        font-weight: bold;
+        text-align: center;
+        display: none; /* Mặc định ẩn đi, khi nào có cảnh báo mới hiện */
+        font-size: 0.9rem;
+      }
+      .alert-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+      .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
     </style>
   </head>
   
   <body>
+
     <div class="topnav">
       <h3>SMART FARM MONITORING SYSTEM</h3>
+      <button style="margin-top:10px; padding:8px 20px; background:white; color:var(--primary-color); border:none; border-radius:20px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" onclick="scanNetwork()">
+        🔍 Quét tìm Node mới
+      </button>
     </div>
     
     <div class="content">
       <div class="cards">
         
-        <div class="card">
+        <div class="card" id="card_Node1">
           <div class="card-header">
             <h3>NODE 1</h3>
+            <button class="btn-delete" onclick="deleteNode('Node1')">✖ Xóa Node</button>
           </div>
           <div class="card-body">
             
+            <div class="network-info">
+              <span>📶 Sóng: <span id="rssi_Slave_1">--</span> dBm</span>
+              <span>📍 Cách Gateway: <span id="dist_Slave_1">--</span> m</span>
+            </div>
+
+            <div class="mode-selector">
+              <label>⚙️ Chế độ điều khiển:</label>
+              <select id="mode_Slave_1" onchange="changeControlMode('Node1', this.value)">
+                <option value="MANUAL">Thủ công (MANUAL)</option>
+                <option value="AUTO">Tự động (AUTO)</option>
+                <option value="AI">Trí tuệ nhân tạo (AI)</option>
+              </select>
+            </div>
+
+            <div id="ai_alert_Slave_1" class="ai-alert"></div>
+
             <div class="sensor-grid">
               <div class="sensor-item">
                 <h4>TEMPERATURE</h4>
@@ -125,18 +193,33 @@ const char MAIN_page[] PROGMEM = R"=====(
             <div class="status-info">
               <p><b>Last Updated:</b> <span id="LTRD_Slave_1">--:--:--</span></p>
               <p><b>Sensor Status:</b> <span id="status_read_DHT11_Slave_1">--</span></p>
-              <p>Pump Status: <span id="LED_1_State_Slave_1" style="font-weight:bold;">--</span></p>
-              <p>Fan Status: <span id="LED_2_State_Slave_1" style="font-weight:bold;">--</span></p>
             </div>
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="card_Node2">
           <div class="card-header">
             <h3>NODE 2</h3>
+            <button class="btn-delete" onclick="deleteNode('Node2')">✖ Xóa Node</button>
           </div>
           <div class="card-body">
             
+            <div class="network-info">
+              <span>📶 Sóng: <span id="rssi_Slave_2">--</span> dBm</span>
+              <span>📍 Cách Gateway: <span id="dist_Slave_2">--</span> m</span>
+            </div>
+
+            <div class="mode-selector">
+              <label>⚙️ Chế độ điều khiển:</label>
+              <select id="mode_Slave_2" onchange="changeControlMode('Node2', this.value)">
+                <option value="MANUAL">Thủ công (MANUAL)</option>
+                <option value="AUTO">Tự động (AUTO)</option>
+                <option value="AI">Trí tuệ nhân tạo (AI)</option>
+              </select>
+            </div>
+
+            <div id="ai_alert_Slave_2" class="ai-alert"></div>
+
             <div class="sensor-grid">
               <div class="sensor-item">
                 <h4>TEMPERATURE</h4>
@@ -180,8 +263,6 @@ const char MAIN_page[] PROGMEM = R"=====(
             <div class="status-info">
               <p><b>Last Updated:</b> <span id="LTRD_Slave_2">--:--:--</span></p>
               <p><b>Sensor Status:</b> <span id="status_read_DHT11_Slave_2">--</span></p>
-              <p>Pump Status: <span id="LED_1_State_Slave_2" style="font-weight:bold;">--</span></p>
-              <p>Fan Status: <span id="LED_2_State_Slave_2" style="font-weight:bold;">--</span></p>
             </div>
           </div>
         </div>
@@ -189,11 +270,11 @@ const char MAIN_page[] PROGMEM = R"=====(
       </div>
     </div>
     
-    <p id="Show_Info">Waiting for connection...</p>
+    <p id="Show_Info">Đang chờ kết nối từ Gateway...</p>
     
     <script>
       // Initialize Charts
-      const maxDataPoints = 15; // Max points on the X axis
+      const maxDataPoints = 15; 
       
       const chartConfig = {
         type: 'line',
@@ -247,6 +328,23 @@ const char MAIN_page[] PROGMEM = R"=====(
         chart.update();
       }
 
+      // ==== THÊM MỚI: Hàm gửi lệnh Xóa Node ====
+      function deleteNode(nodeName) {
+        if (confirm("Bạn có chắc chắn muốn xóa " + nodeName + " khỏi hệ thống? (Node sẽ không cập nhật dữ liệu nữa)")) {
+          
+          // Ẩn toàn bộ Card của Node đó khỏi màn hình (Xóa giao diện)
+          document.getElementById('card_' + nodeName).style.display = 'none';
+          
+          // Gửi request HTTP lên ESP32 Master để khóa Node (Xóa phần cứng)
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", "/delete_node?node=" + nodeName, true);
+          xhr.send();
+          
+          document.getElementById("Show_Info").innerHTML = "Đã khóa thành công " + nodeName;
+          setTimeout(() => { document.getElementById("Show_Info").innerHTML = ""; }, 3000);
+        }
+      }
+
       // Original System Logic
       var Timer = setInterval(myTimer, 100);
       var TimerShowInfo = setInterval(myTimerShowInfo, 100);
@@ -269,13 +367,17 @@ const char MAIN_page[] PROGMEM = R"=====(
           var time = leading_zeros(today.getHours()) + ":" + leading_zeros(today.getMinutes()) + ":" + leading_zeros(today.getSeconds());
 
           count_to_Show_Info_no_Data_is_coming = 0;
-          if (document.getElementById("Show_Info").innerHTML == "No data received for over 10 seconds.") {
+          if (document.getElementById("Show_Info").innerHTML == "Mất kết nối với Master ESP32...") {
             document.getElementById("Show_Info").innerHTML = "";
           }
           
           var obj = JSON.parse(e.data);
           
           if (obj.ID_Slave == "S1") {
+            // Hiển thị RSSI và Khoảng cách cho Node 1
+            document.getElementById("rssi_Slave_1").innerHTML = obj.RSSI || "--";
+            document.getElementById("dist_Slave_1").innerHTML = obj.Distance ? obj.Distance.toFixed(2) : "--";
+
             document.getElementById("status_read_DHT11_Slave_1").innerHTML = obj.StatusReadDHT11;
             document.getElementById("status_read_DHT11_Slave_1").style.color = (obj.StatusReadDHT11 == "FAILED") ? "red" : "#2E7D32";
             
@@ -284,21 +386,21 @@ const char MAIN_page[] PROGMEM = R"=====(
             document.getElementById("light_Slave_1").innerHTML = obj.Light;
             document.getElementById("soil_Slave_1").innerHTML = obj.SoilMoisture;
 
-            document.getElementById("LED_1_State_Slave_1").innerHTML = obj.LED1 ? "ON" : "OFF";
-            document.getElementById("LED_1_State_Slave_1").style.color = obj.LED1 ? "#2E7D32" : "#e53935";
             document.getElementById("togLED_1_Slave_1").checked = obj.LED1;
-
-            document.getElementById("LED_2_State_Slave_1").innerHTML = obj.LED2 ? "ON" : "OFF";
-            document.getElementById("LED_2_State_Slave_1").style.color = obj.LED2 ? "#2E7D32" : "#e53935";
             document.getElementById("togLED_2_Slave_1").checked = obj.LED2;
             
             document.getElementById("LTRD_Slave_1").innerHTML = time;
-            
-            // Update Chart
             updateChart(chartS1, time, obj.Temp, obj.Humd, obj.Light, obj.SoilMoisture);
+
+            // GỌI HÀM CẬP NHẬT CẢNH BÁO AI CHO NODE 1
+            updateAIAlertBox("Slave_1", obj.AIDecision);
           }
           
           if (obj.ID_Slave == "S2") {
+            // Hiển thị RSSI và Khoảng cách cho Node 2
+            document.getElementById("rssi_Slave_2").innerHTML = obj.RSSI || "--";
+            document.getElementById("dist_Slave_2").innerHTML = obj.Distance ? obj.Distance.toFixed(2) : "--";
+
             document.getElementById("status_read_DHT11_Slave_2").innerHTML = obj.StatusReadDHT11;
             document.getElementById("status_read_DHT11_Slave_2").style.color = (obj.StatusReadDHT11 == "FAILED") ? "red" : "#2E7D32";
             
@@ -307,37 +409,38 @@ const char MAIN_page[] PROGMEM = R"=====(
             document.getElementById("light_Slave_2").innerHTML = obj.Light;
             document.getElementById("soil_Slave_2").innerHTML = obj.SoilMoisture;
             
-            document.getElementById("LED_1_State_Slave_2").innerHTML = obj.LED1 ? "ON" : "OFF";
-            document.getElementById("LED_1_State_Slave_2").style.color = obj.LED1 ? "#2E7D32" : "#e53935";
             document.getElementById("togLED_1_Slave_2").checked = obj.LED1;
-
-            document.getElementById("LED_2_State_Slave_2").innerHTML = obj.LED2 ? "ON" : "OFF";
-            document.getElementById("LED_2_State_Slave_2").style.color = obj.LED2 ? "#2E7D32" : "#e53935";
             document.getElementById("togLED_2_Slave_2").checked = obj.LED2;
             
             document.getElementById("LTRD_Slave_2").innerHTML = time;
-
-            // Update Chart
             updateChart(chartS2, time, obj.Temp, obj.Humd, obj.Light, obj.SoilMoisture);
+
+            // GỌI HÀM CẬP NHẬT CẢNH BÁO AI CHO NODE 2
+            updateAIAlertBox("Slave_2", obj.AIDecision);
           }
         }, false);
       }
 
-      function requestLEDStatus() {
+      function leading_zeros(x) { 
+        return (x < 10 ? '0' : '') + x;
+      }
+
+      function send_LED_State(id,slave,led_num) {
+        change_TglBtn_Disable = true;
+        document.getElementById("Show_Info").innerHTML = "Đang gửi lệnh tới " + (slave == "S1" ? "Node 1" : "Node 2") + "...";
+        
+        document.getElementById("togLED_1_Slave_1").disabled = true;
+        document.getElementById("togLED_2_Slave_1").disabled = true;
+        document.getElementById("togLED_1_Slave_2").disabled = true;
+        document.getElementById("togLED_2_Slave_2").disabled = true;  
+        
+        var tgLEDFlash = document.getElementById(id);
+        var tgState = tgLEDFlash.checked ? "t" : "f";
+        
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "get_LED_Status", true);
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState == 4 && xhr.status == 200) {
-            var obj = JSON.parse(xhr.responseText);
-            document.getElementById("togLED_1_Slave_1").checked = obj.LED1;
-            document.getElementById("togLED_2_Slave_1").checked = obj.LED2;
-            document.getElementById("togLED_1_Slave_2").checked = obj.LED1;
-            document.getElementById("togLED_2_Slave_2").checked = obj.LED2;
-          }
-        };
+        xhr.open("GET", "/set_LED?Slave_Num="+slave+"&LED_Num="+led_num+"&LED_Val="+tgState, true);
         xhr.send();
       }
-      window.onload = requestLEDStatus;
 
       function myTimer() {
         if (change_TglBtn_Disable == true) {
@@ -355,54 +458,103 @@ const char MAIN_page[] PROGMEM = R"=====(
 
       function myTimerShowInfo() {
         count_to_Show_Info_no_Data_is_coming += 100;
-        if (count_to_Show_Info_no_Data_is_coming > 10000) {
+        if (count_to_Show_Info_no_Data_is_coming > 15000) {
           count_to_Show_Info_no_Data_is_coming = 0;
-          document.getElementById("Show_Info").innerHTML = "No data received for over 10 seconds.";
+          document.getElementById("Show_Info").innerHTML = "Mất kết nối với Master ESP32...";
         }
         
         count_to_Show_Info += 100;
         if (count_to_Show_Info > 1500) {
           count_to_Show_Info = 0;
-          if (start_Show_Info_For_First_Time == true) {
-            start_Show_Info_For_First_Time = false;
+          if (document.getElementById("Show_Info").innerHTML.includes("Đang gửi lệnh")) {
             document.getElementById("Show_Info").innerHTML = "";
-            return;
-          }
-          if (document.getElementById("Show_Info").innerHTML.includes("Sending control command")) {
-            document.getElementById("Show_Info").innerHTML = "Please wait for Node response...";
-            return;
-          }
-          if (document.getElementById("Show_Info").innerHTML == "Please wait for Node response...") {
-            document.getElementById("Show_Info").innerHTML = "";
-            return;
           }
         }
       }
 
-      function leading_zeros(x) { 
-        return (x < 10 ? '0' : '') + x;
-      }
-
-      function send_LED_State(id,slave,led_num) {
-        count_to_Show_Info = 0;
-        change_TglBtn_Disable = true;
-        document.getElementById("Show_Info").innerHTML = "Sending control command to " + (slave == "S1" ? "Node 1" : "Node 2") + "...";
+      // ==== Tính năng Tự động khám phá mạng ====
+      function scanNetwork() {
+        document.getElementById("Show_Info").innerHTML = "Đang phát sóng LoRa quét mạng. Quá trình này mất khoảng vài giây...";
         
-        document.getElementById("togLED_1_Slave_1").disabled = true;
-        document.getElementById("togLED_2_Slave_1").disabled = true;
-        document.getElementById("togLED_1_Slave_2").disabled = true;
-        document.getElementById("togLED_2_Slave_2").disabled = true;  
-        
-        var tgLEDFlash = document.getElementById(id);
-        var tgState = tgLEDFlash.checked ? "t" : "f";
-        send_cmd(slave,led_num,tgState);
-      }
-
-      function send_cmd(slave,led_num,value) {
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "set_LED?Slave_Num="+slave+"&LED_Num="+led_num+"&LED_Val="+value, true);
+        xhr.open("GET", "/scan_network", true);
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState == 4 && xhr.status == 200) {
+            var nodes = JSON.parse(xhr.responseText); // Nhận danh sách Node tìm thấy từ Master
+            
+            if (nodes.length > 0) {
+              var msg = "📡 TÌM THẤY CÁC NODE ĐANG PHÁT SÓNG:\n";
+              for (var i = 0; i < nodes.length; i++) {
+                msg += "👉 " + nodes[i] + "\n";
+              }
+              msg += "\nBạn có muốn kết nối và nhận dữ liệu từ các Node này không?";
+              
+              // Hiển thị Pop-up lựa chọn cho người dùng
+              if (confirm(msg)) {
+                for (var i = 0; i < nodes.length; i++) {
+                  addNode(nodes[i]); // Gọi lệnh thêm từng Node
+                }
+              } else {
+                document.getElementById("Show_Info").innerHTML = "Đã hủy kết nối.";
+              }
+            } else {
+              alert("❌ Không tìm thấy thiết bị Slave nào mới trong phạm vi phủ sóng LoRa!");
+              document.getElementById("Show_Info").innerHTML = "";
+            }
+          }
+        };
         xhr.send();
       }
+
+      function addNode(nodeName) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/add_node?node=" + nodeName, true);
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState == 4 && xhr.status == 200) {
+            // Hiển thị lại thẻ Card trên giao diện
+            document.getElementById('card_' + nodeName).style.display = 'block'; 
+            document.getElementById("Show_Info").innerHTML = "✅ Đã kết nối thành công " + nodeName;
+          }
+        };
+        xhr.send();
+      }
+
+      // ==== HÀM GỬI LỆNH ĐỔI CHẾ ĐỘ ĐIỀU KHIỂN ====
+      function changeControlMode(nodeName, modeValue) {
+        document.getElementById("Show_Info").innerHTML = "Đang đổi " + nodeName + " sang chế độ " + modeValue + "...";
+        
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/set_mode?node=" + nodeName + "&mode=" + modeValue, true);
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState == 4 && xhr.status == 200) {
+            document.getElementById("Show_Info").innerHTML = "✅ Đã cập nhật thành công chế độ " + modeValue + " cho " + nodeName;
+            
+            // Xóa thông báo sau 3 giây
+            setTimeout(() => { document.getElementById("Show_Info").innerHTML = ""; }, 3000);
+          }
+        };
+        xhr.send();
+      }
+
+      // Hàm cập nhật trạng thái cảnh báo AI lên màn hình
+      function updateAIAlertBox(slaveId, decision) {
+        var alertDiv = document.getElementById("ai_alert_" + slaveId);
+        if (!alertDiv) return;
+        
+        if (decision === "WARNING") {
+          alertDiv.innerHTML = "⚠️ CẢNH BÁO AI: Đất sắp khô trong 30 phút tới! Chuẩn bị tưới.";
+          alertDiv.className = "ai-alert alert-warning";
+          alertDiv.style.display = "block";
+        } else if (decision === "PUMP_ON") {
+          alertDiv.innerHTML = "🚨 HỆ THỐNG AI: Đất quá khô! Đang kích hoạt máy bơm chủ động.";
+          alertDiv.className = "ai-alert alert-danger";
+          alertDiv.style.display = "block";
+        } else {
+          // Nếu trạng thái là SAFE hoặc trống thì ẩn banner đi
+          alertDiv.style.display = "none";
+        }
+      }
+
     </script>
   </body>
 </html>

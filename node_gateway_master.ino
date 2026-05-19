@@ -9,7 +9,7 @@
 #include <Arduino_JSON.h>
 #include <esp_task_wdt.h>
 
-#include "dashboard.h" 
+#include "web_dashboard.h" 
 
 // cau hinh firebase
 #define FIREBASE_AUTH "xIFVYT1WLjLKTJX6sztlo9SLyJUmKI4Wr4bkJKau"
@@ -42,8 +42,8 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", 7 * 3600, 60000);  // Múi giờ GM
 //----------------------------------------
 
 //---------------------------------------- Variable declaration for your network credentials.
-const char* ssid = "DUC THUAN";
-const char* password = "29051975";
+const char* ssid = "Truong Giang Nguyen";
+const char* password = "hoilamgi";
 //----------------------------------------
 
 //---------------------------------------- Variable declaration to hold incoming and outgoing data.
@@ -73,6 +73,13 @@ String LED_2_State_str = "";
 String receive_Status_Read_DHT11 = "";
 bool LED_1_State_bool = false;
 bool LED_2_State_bool = false;
+
+// 2 biến lưu RSSI và khoảng cách
+int current_rssi = 0;
+float current_distance = 0.0;
+String ai_decision_S1 = "SAFE";
+String ai_decision_S2 = "SAFE";
+
 //---------------------------------------- 
 const char* PARAM_INPUT_1 = "Slave_Num";
 const char* PARAM_INPUT_2 = "LED_Num";
@@ -138,10 +145,17 @@ void onReceive(int packetSize) {
   byte incomingLength = LoRa.read();  //--> incoming msg length
   // Clears Incoming variable data.
   Incoming = "";
-  //---------------------------------------- Get all incoming data / message.
+//---------------------------------------- Get all incoming data / message.
   while (LoRa.available()) {
     Incoming += (char)LoRa.read();
   }
+  
+  // Lấy chỉ số RSSI và tính khoảng cách
+  current_rssi = LoRa.packetRssi();
+  float A = -45.0; // RSSI tiêu chuẩn ở 1 mét (có thể tinh chỉnh sau)
+  float n = 3.0;   // Hệ số suy hao môi trường
+  current_distance = pow(10, (A - current_rssi) / (10.0 * n));
+
   // Resets the value of the count_to_Rst_LORA variable if a message is received.
   count_to_Rst_LORA = 0;
 
@@ -249,13 +263,74 @@ void Processing_incoming_data() {
     Send_Data_to_WS("S1", 1);
     Send_Data_to_Firebase("Node1", 0);
 
+    // --- Sent rssi & distance node 1 to firebase ---
+    Firebase.setInt(firebaseData, "/Network_Config/Active_Nodes/Node1/rssi", current_rssi);
+    Firebase.setFloat(firebaseData, "/Network_Config/Active_Nodes/Node1/distance", current_distance);
+
     Serial.println("Node1: Humidity: " + String(Humd[0]) + 
                ", Temp: " + String(Temp[0]) + 
                ", Lux: " + String(Light[0]) + 
                ", Soil Moisture: " + String(SoilMoisture[0]) + "% , " + 
                "LED 1: " + String(LED_1_State_str) + 
                ", LED 2: " + String(LED_2_State_str));
+    
+    // =================================================================
+    // KỊCH BẢN ĐIỀU KHIỂN THÔNG MINH 3 CHẾ ĐỘ CHO NODE 1
+    // =================================================================
+    String ctrlMode_S1 = "MANUAL"; // Mặc định nếu không đọc được
+    if (Firebase.getString(firebaseData, "/Network_Config/Active_Nodes/Node1/control_mode")) {
+        ctrlMode_S1 = firebaseData.stringData();
+    }
 
+    // --- CHẾ ĐỘ 1: ĐIỀU KHIỂN BẰNG AI ---
+    if (ctrlMode_S1 == "AI") {
+        String aiDecision = "SAFE";
+        if (Firebase.getString(firebaseData, "/Network_Config/Active_Nodes/Node1/ai_decision")) {
+            aiDecision = firebaseData.stringData();
+        }
+        
+        // Chỉ bật bơm (lệnh "2,t") nếu AI yêu cầu PUMP_ON và trạng thái bơm hiện tại đang tắt ("0")
+        if (aiDecision == "PUMP_ON" && LED_2_State_str == "0") {
+            Serial.println("[AI MODE] AI yêu cầu PUMP_ON. Tiến hành bật bơm Node 1...");
+            delay(100);
+            sendMessage("2,t", Destination_ESP32_Slave_1, led_Control_Mode);
+        } 
+        // Chỉ tắt bơm (lệnh "2,f") nếu AI báo SAFE và trạng thái bơm hiện tại đang bật ("1")
+        else if (aiDecision == "SAFE" && LED_2_State_str == "1") {
+            Serial.println("[AI MODE] AI báo SAFE. Tiến hành tắt bơm Node 1...");
+            delay(100);
+            sendMessage("2,f", Destination_ESP32_Slave_1, led_Control_Mode);
+        }
+    }
+    // --- CHẾ ĐỘ 2: ĐIỀU KHIỂN TỰ ĐỘNG THÔNG THƯỜNG (BIẾN THƯỜNG) ---
+    else if (ctrlMode_S1 == "AUTO") {
+        // Tự động bật bơm nếu độ ẩm đất < 55% và bơm đang tắt
+        if (SoilMoisture[0] > 0 && SoilMoisture[0] < 55 && LED_2_State_str == "0") {
+            Serial.println("[AUTO MODE] Độ ẩm đất < 55%. Tiến hành bật bơm Node 1...");
+            delay(100);
+            sendMessage("2,t", Destination_ESP32_Slave_1, led_Control_Mode);
+        }
+        // Tự động tắt bơm nếu độ ẩm đất đạt ngưỡng an toàn >= 70% và bơm đang bật
+        else if (SoilMoisture[0] >= 70 && LED_2_State_str == "1") {
+            Serial.println("[AUTO MODE] Đất đã đủ ẩm (>= 70%). Tiến hành tắt bơm Node 1...");
+            delay(100);
+            sendMessage("2,f", Destination_ESP32_Slave_1, led_Control_Mode);
+        }
+
+        // Tự động điều khiển Quạt tản nhiệt (LED 1) theo nhiệt độ không khí
+        if (Temp[0] > 32.0 && LED_1_State_str == "0") {
+            Serial.println("[AUTO MODE] Nhiệt độ > 32°C. Tiến hành bật quạt Node 1...");
+            delay(100);
+            sendMessage("1,t", Destination_ESP32_Slave_1, led_Control_Mode);
+        }
+        else if (Temp[0] < 29.0 && Temp[0] > 0 && LED_1_State_str == "1") {
+            Serial.println("[AUTO MODE] Nhiệt độ < 29°C. Tiến hành tắt quạt Node 1...");
+            delay(100);
+            sendMessage("1,f", Destination_ESP32_Slave_1, led_Control_Mode);
+        }
+    }
+    // --- CHẾ ĐỘ 3: MANUAL ---
+    // Nếu ctrlMode là "MANUAL", Master giữ nguyên trạng thái để người dùng tự bật/tắt bằng tay từ Web
   }
   //---------------------------------------- 
 
@@ -281,14 +356,67 @@ void Processing_incoming_data() {
     Send_Data_to_WS("S2", 2);
     Send_Data_to_Firebase("Node2", 1);
 
+    // --- Sent rssi & distance node 2 to firebase ---
+    Firebase.setInt(firebaseData, "/Network_Config/Active_Nodes/Node2/rssi", current_rssi);
+    Firebase.setFloat(firebaseData, "/Network_Config/Active_Nodes/Node2/distance", current_distance);
+
     Serial.println("Node2: Humidity: " + String(Humd[1]) + 
                ", Temp: " + String(Temp[1]) + 
                ", Lux: " + String(Light[1]) + 
                ", Soil Moisture: " + String(SoilMoisture[1]) + "% , " + 
                "LED 1: " + String(LED_1_State_str) + 
                ", LED 2: " + String(LED_2_State_str));
+    
+    // =================================================================
+    // KỊCH BẢN ĐIỀU KHIỂN THÔNG MINH 3 CHẾ ĐỘ CHO NODE 2
+    // =================================================================
+    String ctrlMode_S2 = "MANUAL";
+    if (Firebase.getString(firebaseData, "/Network_Config/Active_Nodes/Node2/control_mode")) {
+        ctrlMode_S2 = firebaseData.stringData();
+    }
 
+    // --- CHẾ ĐỘ 1: ĐIỀU KHIỂN BẰNG AI ---
+    if (ctrlMode_S2 == "AI") {
+        String aiDecision = "SAFE";
+        if (Firebase.getString(firebaseData, "/Network_Config/Active_Nodes/Node2/ai_decision")) {
+            aiDecision = firebaseData.stringData();
+        }
+        
+        if (aiDecision == "PUMP_ON" && LED_2_State_str == "0") {
+            Serial.println("[AI MODE] AI yêu cầu PUMP_ON. Tiến hành bật bơm Node 2...");
+            delay(100);
+            sendMessage("2,t", Destination_ESP32_Slave_2, led_Control_Mode);
+        } 
+        else if (aiDecision == "SAFE" && LED_2_State_str == "1") {
+            Serial.println("[AI MODE] AI báo SAFE. Tiến hành tắt bơm Node 2...");
+            delay(100);
+            sendMessage("2,f", Destination_ESP32_Slave_2, led_Control_Mode);
+        }
+    }
+    // --- CHẾ ĐỘ 2: ĐIỀU KHIỂN TỰ ĐỘNG THÔNG THƯỜNG ---
+    else if (ctrlMode_S2 == "AUTO") {
+        if (SoilMoisture[1] > 0 && SoilMoisture[1] < 55 && LED_2_State_str == "0") {
+            Serial.println("[AUTO MODE] Độ ẩm đất < 55%. Tiến hành bật bơm Node 2...");
+            delay(100);
+            sendMessage("2,t", Destination_ESP32_Slave_2, led_Control_Mode);
+        }
+        else if (SoilMoisture[1] >= 70 && LED_2_State_str == "1") {
+            Serial.println("[AUTO MODE] Đất đã đủ ẩm (>= 70%). Tiến hành tắt bơm Node 2...");
+            delay(100);
+            sendMessage("2,f", Destination_ESP32_Slave_2, led_Control_Mode);
+        }
 
+        if (Temp[1] > 32.0 && LED_1_State_str == "0") {
+            Serial.println("[AUTO MODE] Nhiệt độ > 32°C. Tiến hành bật quạt Node 2...");
+            delay(100);
+            sendMessage("1,t", Destination_ESP32_Slave_2, led_Control_Mode);
+        }
+        else if (Temp[1] < 29.0 && Temp[1] > 0 && LED_1_State_str == "1") {
+            Serial.println("[AUTO MODE] Nhiệt độ < 29°C. Tiến hành tắt quạt Node 2...");
+            delay(100);
+            sendMessage("1,f", Destination_ESP32_Slave_2, led_Control_Mode);
+        }
+    }
 
   }
   //---------------------------------------- 
@@ -306,8 +434,19 @@ void Send_Data_to_WS(char ID_Slave[5], byte Slave) {
   JSON_All_Data_Received["SoilMoisture"] = SoilMoisture[Slave-1];
   JSON_All_Data_Received["LED1"] = LED_1_State_bool;
   JSON_All_Data_Received["LED2"] = LED_2_State_bool; 
+  // --- GỬI KHOẢNG CÁCH XUỐNG WEB ---
+  JSON_All_Data_Received["RSSI"] = current_rssi;
+  JSON_All_Data_Received["Distance"] = current_distance;
   //:::::::::::::::::: 
   
+  // --- ĐÓNG GÓI TRẠNG THÁI AI GỬI XUỐNG WEB ---
+  if (Slave == 1) {
+    JSON_All_Data_Received["AIDecision"] = ai_decision_S1;
+  } else if (Slave == 2) {
+    JSON_All_Data_Received["AIDecision"] = ai_decision_S2;
+  }
+  // ------------------------------------------------------------
+
   //:::::::::::::::::: Create a JSON String to hold all data received from the sender.
   String jsonString_Send_All_Data_received = JSON.stringify(JSON_All_Data_Received);
   //:::::::::::::::::: 
@@ -470,6 +609,99 @@ void setup() {
   });
   //---------------------------------------- 
 
+  //---------------------------------------- 
+  // API Lắng nghe lệnh Xóa Node từ Web Dashboard
+  server.on("/delete_node", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    if (request->hasParam("node")) {
+      String targetNode = request->getParam("node")->value(); // Lấy tên Node cần xóa (VD: "Node1")
+      
+      // Ghi đè trạng thái is_active thành false thẳng lên Firebase
+      String path = "/Network_Config/Active_Nodes/" + targetNode + "/is_active";
+      Firebase.setBool(firebaseData, path, false);
+      
+      Serial.println();
+      Serial.println("[HỆ THỐNG WEB] Đã nhận lệnh khóa/xóa: " + targetNode);
+    }
+    request->send(200, "text/plain", "Node Deleted");
+  });
+  //----------------------------------------
+
+  //---------------------------------------- 
+  // API Lắng nghe lệnh Khám phá mạng (Auto-Discovery) từ Web
+  server.on("/scan_network", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    String foundNodes = "["; // Tạo chuỗi JSON mảng
+    bool isFirst = true;
+    
+    Serial.println("[HỆ THỐNG] Đang quét các Node mới/bị khóa trong phạm vi...");
+
+    // Thử "Ping" Node 1 (Nếu nó đang bị khóa trên Firebase)
+    if (Firebase.getBool(firebaseData, "/Network_Config/Active_Nodes/Node1/is_active") && !firebaseData.boolData()) {
+      sendMessage("", Destination_ESP32_Slave_1, get_Data_Mode); // Gọi Node 1
+      unsigned long startWait = millis();
+      bool isAlive = false;
+      while(millis() - startWait < 1500) { // Chờ 1.5 giây xem có phản hồi không
+        if (LoRa.parsePacket()) { isAlive = true; break; }
+      }
+      if (isAlive) {
+        foundNodes += "\"Node1\"";
+        isFirst = false;
+        Serial.println("-> Đã tìm thấy: Node 1");
+      }
+    }
+
+    // Thử "Ping" Node 2 (Nếu nó đang bị khóa trên Firebase)
+    if (Firebase.getBool(firebaseData, "/Network_Config/Active_Nodes/Node2/is_active") && !firebaseData.boolData()) {
+      sendMessage("", Destination_ESP32_Slave_2, get_Data_Mode); // Gọi Node 2
+      unsigned long startWait = millis();
+      bool isAlive = false;
+      while(millis() - startWait < 1500) { 
+        if (LoRa.parsePacket()) { isAlive = true; break; }
+      }
+      if (isAlive) {
+        if (!isFirst) foundNodes += ",";
+        foundNodes += "\"Node2\"";
+        Serial.println("-> Đã tìm thấy: Node 2");
+      }
+    }
+
+    foundNodes += "]"; // Đóng mảng JSON
+    request->send(200, "application/json", foundNodes); // Trả kết quả về cho Web
+  });
+
+  // API Thêm Node (Kết nối lại)
+  server.on("/add_node", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    if (request->hasParam("node")) {
+      String targetNode = request->getParam("node")->value();
+      
+      // Bật lại is_active = true trên Firebase
+      String path = "/Network_Config/Active_Nodes/" + targetNode + "/is_active";
+      Firebase.setBool(firebaseData, path, true);
+      
+      Serial.println("[HỆ THỐNG] Đã kết nối lại thành công với: " + targetNode);
+    }
+    request->send(200, "text/plain", "Node Added");
+  });
+
+//---------------------------------------- 
+  // API Lắng nghe lệnh Đổi Chế độ (MANUAL / AUTO / AI) từ Web Dashboard
+  server.on("/set_mode", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    if (request->hasParam("node") && request->hasParam("mode")) {
+      String targetNode = request->getParam("node")->value(); // Lấy tên Node (VD: "Node1")
+      String newMode = request->getParam("mode")->value();    // Lấy chế độ (VD: "AI")
+      
+      // Ghi đè trạng thái điều khiển lên Firebase
+      String path = "/Network_Config/Active_Nodes/" + targetNode + "/control_mode";
+      Firebase.setString(firebaseData, path, newMode);
+      
+      Serial.println();
+      Serial.println("[HỆ THỐNG WEB] Đã đổi " + targetNode + " sang chế độ: " + newMode);
+    }
+    request->send(200, "text/plain", "Mode Updated");
+  });
+  //----------------------------------------
+
+  //----------------------------------------
+
   //---------------------------------------- Adding event sources on the Server.
   Serial.println();
   Serial.println("Adding event sources on the Server.");
@@ -524,23 +756,47 @@ void loop() {
     Slv++;
     if (Slv > 2) Slv = 1;
     
-    //:::::::::::::::::: Condition for sending message / command data to Slave 1 (ESP32 Slave 1).
+    //:::::::::::::::::: Cập nhật Logic Quản lý Node 1
     if (Slv == 1) {
-      Humd[0] = 0;
-      Temp[0] = 0.00;
-      Light[0] = 0;
-      SoilMoisture[0] = 0;
-      sendMessage("", Destination_ESP32_Slave_1, get_Data_Mode);
+      bool isActive = true;
+      if (Firebase.getBool(firebaseData, "/Network_Config/Active_Nodes/Node1/is_active")) {
+          isActive = firebaseData.boolData();
+      }
+
+      // --- ĐỌC QUYẾT ĐỊNH AI CỦA NODE 1 ---
+      if (Firebase.getString(firebaseData, "/Network_Config/Active_Nodes/Node1/ai_decision")) {
+          ai_decision_S1 = firebaseData.stringData();
+      }
+      // -----------------------------------------------------
+
+      if (isActive) {
+        Humd[0] = 0; Temp[0] = 0.00; Light[0] = 0; SoilMoisture[0] = 0;
+        sendMessage("", Destination_ESP32_Slave_1, get_Data_Mode);
+      } else {
+        Serial.println("[HỆ THỐNG] Node 1 đã bị khóa/xóa. Đang bỏ qua...");
+      }
     }
     //:::::::::::::::::: 
     
-    //:::::::::::::::::: Condition for sending message / command data to Slave 2 (ESP32 Slave 2).
+    //:::::::::::::::::: Cập nhật Logic Quản lý Node 2
     if (Slv == 2) {
-      Humd[1] = 0;
-      Temp[1] = 0.00;
-      Light[1] = 0;
-      SoilMoisture[1] = 0;
-      sendMessage("", Destination_ESP32_Slave_2, get_Data_Mode);
+      bool isActive = true;
+      if (Firebase.getBool(firebaseData, "/Network_Config/Active_Nodes/Node2/is_active")) {
+          isActive = firebaseData.boolData();
+      }
+
+      // --- ĐỌC QUYẾT ĐỊNH AI CỦA NODE 2 ---
+      if (Firebase.getString(firebaseData, "/Network_Config/Active_Nodes/Node2/ai_decision")) {
+          ai_decision_S2 = firebaseData.stringData();
+      }
+      // -----------------------------------------------------
+
+      if (isActive) {
+        Humd[1] = 0; Temp[1] = 0.00; Light[1] = 0; SoilMoisture[1] = 0;
+        sendMessage("", Destination_ESP32_Slave_2, get_Data_Mode);
+      } else {
+        Serial.println("[HỆ THỐNG] Node 2 đã bị khóa/xóa. Đang bỏ qua...");
+      }
     }
     //:::::::::::::::::: 
   }

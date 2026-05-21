@@ -83,3 +83,76 @@ This repository contains the complete source code for a lab-scale mini-greenhous
  ┃ ┗ 📜 script.js           # Firebase integration and Chart.js logic
  ┣ 📂 datasets              # Sample .csv files collected during field testing
  ┗ 📜 README.md
+
+##⚙️ Installation & Setup Guide
+Follow these sequential steps to replicate and run the project successfully.
+
+1. Firebase Setup
+Create a new project on Firebase Console.
+
+Create a Realtime Database (Recommended region: asia-southeast1).
+
+Set the database Security Rules to allow read/write access. (See Appendix B in thesis for strict security rules).
+
+Navigate to Project Settings > Service Accounts and generate a new private key. Save this as firebase_key.json and place it inside the 2_Edge_AI_Server/ directory.
+
+2. Hardware Firmware (ESP32)
+Install the Arduino IDE.
+
+Install the ESP32 Core by Espressif via the Boards Manager.
+
+Install required libraries via Library Manager: LoRa (by Sandeep Mistry), Firebase-ESP32, DHT sensor library, BH1750.
+
+Open the Gateway_Master.ino and configure your Wi-Fi credentials and Firebase RTDB URL/Auth token. Flash it to the Master ESP32.
+
+Open Node_Slave.ino, configure the Node IDs (S1, S2), and flash them to the respective Slave ESP32s.
+
+3. Edge AI Server (Python)
+Ensure you have Python 3.10+ installed.
+
+Open your terminal and navigate to the AI folder:
+
+Bash
+cd 2_Edge_AI_Server
+Install the required deep learning and data processing dependencies:
+
+Bash
+pip install tensorflow keras pandas numpy scikit-learn joblib firebase-admin
+Run the Data Logger: (To start collecting real-time training data)
+
+Bash
+python data_logger.py
+Run AI Inference: (Once the model is trained, start the background AI worker)
+
+Bash
+python ai_inference.py
+4. Web Dashboard
+Simply open the index.html file in any modern web browser (Google Chrome / Edge).
+
+Update the Firebase initialization config block inside script.js with your specific Firebase project credentials.
+
+The dashboard will automatically pull historical data, render the charts, and allow you to switch control modes.
+---
+
+## 🎮 Operating Modes
+You can switch between these modes via the Dropdown menu on the Web Dashboard:
+
+MANUAL: Overrides all logic. Use the UI toggle switches to turn the Pump/Fan ON or OFF.
+
+AUTO: The Gateway Master takes over.
+
+Pump: Activates for 10s if soil moisture < 55%, then waits 3 mins.
+
+Fan: Turns on at >32°C and off at <29°C (3°C deadband).
+
+AI: The Python Edge Server analyzes the last 60 mins of data and predicts the moisture 30 mins ahead. If the predicted moisture drops below the safety threshold, it proactively triggers the pump.
+---
+
+## 👨‍💻 Author
+Nguyen Huu Giap Computer Science and Engineering
+
+Vietnam Japan University, VNU Hanoi
+
+Contact: [Insert your LinkedIn/Email here]
+
+This repository is part of my undergraduate Graduation Thesis. If you find this project helpful or use it as a reference, leaving a ⭐ on the repository is highly appreciated!

@@ -78,13 +78,16 @@ This repository contains the complete source code for a lab-scale mini-greenhous
  ┃ ┣ 📜 ai_inference.py     # Real-time inference script for active AI control
  ┃ ┗ 📂 models              # Saved .h5 LSTM models and .gz scalers
  ┣ 📂 3_Web_Dashboard
- ┃ ┣ 📜 index.html          # Main HTML structure
- ┃ ┣ 📜 style.css           # UI Styling
+ ┃ ┣ 📜 web_dashboard.h     # Main HTML structure
  ┃ ┗ 📜 script.js           # Firebase integration and Chart.js logic
  ┣ 📂 datasets              # Sample .csv files collected during field testing
  ┗ 📜 README.md
 
+---
+
 ##⚙️ Installation & Setup Guide
+
+```text
 Follow these sequential steps to replicate and run the project successfully.
 
 1. Firebase Setup
@@ -126,6 +129,8 @@ Run AI Inference: (Once the model is trained, start the background AI worker)
 
 Bash
 python ai_inference.py
+
+---
 4. Web Dashboard
 Simply open the index.html file in any modern web browser (Google Chrome / Edge).
 

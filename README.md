@@ -70,16 +70,18 @@ This repository contains the complete source code for a lab-scale mini-greenhous
 ```text
 📦 Smart-Agriculture-System
  ┣ 📂 1_Firmware_ESP32
- ┃ ┣ 📂 Gateway_Master      # C++ code for the central coordinating ESP32
- ┃ ┗ 📂 Node_Slave          # C++ code for the distributed sensor ESP32s
+ ┃ ┣ 📂 Gateway_Master
+ ┃ ┃     ┣ 📜 gateway_master.ino # C++ code for the central coordinating ESP32
+ ┃ ┃     ┗ 📜 web_dashboard.h    # Main HTML structure
+ ┃ ┗ 📂 Node_Slave
+ ┃       ┣ 📜 node_slave1.ino    # C++ code for the distributed sensor ESP32s 1
+ ┃       ┗ 📜 node_slave2.ino    # C++ code for the distributed sensor ESP32s 2           
  ┣ 📂 2_Edge_AI_Server
  ┃ ┣ 📜 data_logger.py      # Background script to fetch and clean Firebase data
  ┃ ┣ 📜 train_model.py      # Script to train the LSTM model (64-32 nodes)
  ┃ ┣ 📜 ai_inference.py     # Real-time inference script for active AI control
  ┃ ┗ 📂 models              # Saved .h5 LSTM models and .gz scalers
- ┣ 📂 3_Web_Dashboard
- ┃ ┣ 📜 web_dashboard.h     # Main HTML structure
- ┃ ┗ 📜 script.js           # Firebase integration and Chart.js logic
+ ┣ 📜 script.js             # Firebase integration and Chart.js logic
  ┣ 📂 datasets              # Sample .csv files collected during field testing
  ┗ 📜 README.md
 

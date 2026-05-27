@@ -45,7 +45,8 @@ This repository contains the complete source code for a lab-scale mini-greenhous
 
 ## 🏗 System Architecture
 
-*(Optional: Add your architecture diagram here)*
+*<img width="1528" height="766" alt="image" src="https://github.com/user-attachments/assets/0baf31ba-54a8-4283-852b-f9e6a364200d" />
+*
 1. **Uplink:** Sensors -> ESP32 Slaves -> LoRa -> Gateway Master -> Firebase Cloud.
 2. **Downlink:** Web UI / AI Server -> Firebase Cloud -> Gateway Master -> LoRa -> ESP32 Slaves -> Relays/Actuators.
 
@@ -134,7 +135,7 @@ python ai_inference.py
 
 ---
 4. Web Dashboard
-Simply open the index.html file in any modern web browser (Google Chrome / Edge).
+Connect all devices and paste the Local IP to run your website in any Browswer (Google Chrome / Edge).
 
 Update the Firebase initialization config block inside script.js with your specific Firebase project credentials.
 

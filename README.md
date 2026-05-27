@@ -45,8 +45,8 @@ This repository contains the complete source code for a lab-scale mini-greenhous
 
 ## 🏗 System Architecture
 
-*<img width="1528" height="766" alt="image" src="https://github.com/user-attachments/assets/0baf31ba-54a8-4283-852b-f9e6a364200d" />
-*
+<img width="1528" height="766" alt="image" src="https://github.com/user-attachments/assets/0baf31ba-54a8-4283-852b-f9e6a364200d" />
+
 1. **Uplink:** Sensors -> ESP32 Slaves -> LoRa -> Gateway Master -> Firebase Cloud.
 2. **Downlink:** Web UI / AI Server -> Firebase Cloud -> Gateway Master -> LoRa -> ESP32 Slaves -> Relays/Actuators.
 

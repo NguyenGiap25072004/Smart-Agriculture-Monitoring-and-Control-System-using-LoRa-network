@@ -160,6 +160,6 @@ Nguyen Huu Giap Computer Science and Engineering
 
 Vietnam Japan University, VNU Hanoi
 
-Contact: [Insert your LinkedIn/Email here]
+Contact: giapicd04@gmail.com
 
 This repository is part of my undergraduate Graduation Thesis. If you find this project helpful or use it as a reference, leaving a ⭐ on the repository is highly appreciated!

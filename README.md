@@ -87,23 +87,6 @@ This repository contains the complete source code for a lab-scale mini-greenhous
  ┗ 📜 README.md
 
 ---
-
-## ⚙️ Installation & Setup Guide\
-Follow these sequential steps to replicate and run the project successfully.
-
-* **1. Firebase Setup:**
-  *  **Create a new project on Firebase Console.** 
-  *  **Create a Realtime Database (Recommended region: asia-southeast1).** 
-  *  **Set the database Security Rules to allow read/write access. (See Appendix B in thesis for strict security rules).**
-  *  **Navigate to Project Settings > Service Accounts and generate a new private key. Save this as firebase_key.json and place it inside the 2_Edge_AI_Server/ directory.**
-* **Three Flexible Control Modes:**
-  * 🎛️ **MANUAL:** Remote manual control via the Web UI.
-  * ⚙️ **AUTO:** Localized, threshold-based intermittent irrigation and deadband cooling logic ensuring fail-safe operations.
-  * 🧠 **AI (Predictive):** A 2-layer LSTM deep learning model forecasts soil moisture 30 minutes into the future to trigger proactive irrigation before drought stress occurs.
-* **Real-Time Web Dashboard:** Interactive dynamic charts (Chart.js) and system status banners built with asynchronous event listeners.
-* **Automated Data Pipeline:** Background scripts for data logging, cleaning, and model inference.
-
----
 ##⚙️ Installation & Setup Guide
 
 ```text

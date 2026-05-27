@@ -144,15 +144,15 @@ The dashboard will automatically pull historical data, render the charts, and al
 ## 🎮 Operating Modes
 You can switch between these modes via the Dropdown menu on the Web Dashboard:
 
-MANUAL: Overrides all logic. Use the UI toggle switches to turn the Pump/Fan ON or OFF.
+* MANUAL: Overrides all logic. Use the UI toggle switches to turn the Pump/Fan ON or OFF.
 
-AUTO: The Gateway Master takes over.
+* AUTO: The Gateway Master takes over.
 
-Pump: Activates for 10s if soil moisture < 55%, then waits 3 mins.
+  ** Pump: Activates for 10s if soil moisture < 55%, then waits 3 mins.
 
-Fan: Turns on at >32°C and off at <29°C (3°C deadband).
+  ** Fan: Turns on at >32°C and off at <29°C (3°C deadband).
 
-AI: The Python Edge Server analyzes the last 60 mins of data and predicts the moisture 30 mins ahead. If the predicted moisture drops below the safety threshold, it proactively triggers the pump.
+* AI: The Python Edge Server analyzes the last 60 mins of data and predicts the moisture 30 mins ahead. If the predicted moisture drops below the safety threshold, it proactively triggers the pump.
 ---
 
 ## 👨‍💻 Author

@@ -12,9 +12,9 @@
 #include "web_dashboard.h" 
 
 // cau hinh firebase
-#define FIREBASE_AUTH "xIFVYT1WLjLKTJX6sztlo9SLyJUmKI4Wr4bkJKau"
+#define FIREBASE_AUTH "Enter your FIREBASE_AUTH code here"
 
-#define DATABASE_URL "https://smartfarmvju-default-rtdb.asia-southeast1.firebasedatabase.app"  // URL của Firebase
+#define DATABASE_URL "Enter your URL Firebase here"  // Firebase's URL
 
 FirebaseData firebaseData;
 FirebaseAuth auth;
@@ -42,8 +42,8 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", 7 * 3600, 60000);  // Múi giờ GM
 //----------------------------------------
 
 //---------------------------------------- Variable declaration for your network credentials.
-const char* ssid = "Truong Giang Nguyen";
-const char* password = "hoilamgi";
+const char* ssid = "Enter your Wifi's name here";
+const char* password = "Enter your Wifi's password here";
 //----------------------------------------
 
 //---------------------------------------- Variable declaration to hold incoming and outgoing data.

@@ -81,7 +81,7 @@ This repository contains the complete source code for a lab-scale mini-greenhous
  ┃ ┣ 📜 train_model.py      # Script to train the LSTM model (64-32 nodes)
  ┃ ┣ 📜 ai_inference.py     # Real-time inference script for active AI control
  ┃ ┗ 📂 models              # Saved .h5 LSTM models and .gz scalers
- ┣ 📜 script.js             # Firebase integration and Chart.js logic
+ ┣ 📜 firebase_key.json     # Firebase integration and Chart.js logic
  ┣ 📂 datasets              # Sample .csv files collected during field testing
  ┗ 📜 README.md
 

@@ -68,4 +68,4 @@ print("Nhấn Ctrl+C trên bàn phím để dừng chương trình.\n")
 while True:
     fetch_and_save_data()
     # Tạm dừng 5 phút (300 giây)
-    time.sleep(10)
+    time.sleep(300)

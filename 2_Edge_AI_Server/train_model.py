@@ -69,7 +69,7 @@ history = model.fit(X_train, y_train, epochs=50, batch_size=16, validation_data=
 model.save('lstm_soil_model_node1.h5')
 print("-> Đã lưu mô hình thành file lstm_soil_model_node1.h5")
 
-# 4. VẼ BIỂU ĐỒ ĐÁNH GIÁ (DÙNG ĐỂ CHO VÀO BÁO CÁO)
+# 4. VẼ BIỂU ĐỒ ĐÁNH GIÁ 
 plt.figure(figsize=(10, 6))
 plt.plot(history.history['loss'], label='Sai số lúc Học (Train Loss)')
 plt.plot(history.history['val_loss'], label='Sai số lúc Thi (Validation Loss)')
